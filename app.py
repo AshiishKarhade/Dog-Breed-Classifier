@@ -12,7 +12,6 @@ app = Flask(__name__)
 
 dog_categories = ['beagle', 'chihuahua', 'doberman', 'french_bulldog', 'golden_retriever', 'malamute', 'pug', 'saint_bernard', 'scottish_deerhound', 'tibetan_mastiff']
 
-
 @app.route('/', methods=['GET'])
 def home():
     return "WELCOME"
@@ -27,11 +26,11 @@ def base64_to_image(base64_str, image_path=None):
         img.save(image_path)
     return img
 
-def classify(image):
+def classify(image, l_model):
     img = image.resize((512, 512))
     img = np.array(img)
     img = img.reshape(-1, 512, 512, 3)
-    probs = model.predict(img)
+    probs = l_model.predict(img)
     y_pred = np.argmax(probs) 
     probs = [item for sublist in probs for item in sublist] # flatten the 2d list to 1d list
     score = (probs[y_pred]/np.sum(probs)) * 100 # calculate the percentage scores from probabilities
@@ -41,10 +40,12 @@ def classify(image):
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        modelfile = 'final_model.h5'
+        model = load_model(modelfile)
         content = request.get_json()
         image_str = content['image']
         img = base64_to_image(image_str)
-        pred, score = classify(img)
+        pred, score = classify(img, model)
         pred = dog_categories[pred]
         print(f"breed: {pred}, score:{score}")
         return jsonify({'breed': str(pred), 'score': str(score)})
@@ -53,7 +54,5 @@ def predict():
         return jsonify({'trace': traceback.format_exc()})
 
 if __name__ == '__main__':
-    modelfile = 'final_model.h5'
-    print("Loading Model...")
-    model = load_model(modelfile)
-    app.run(debug=True) #, host='0.0.0.0'
+    port = 5001
+    app.run(host='0.0.0.0', port=port, debug=True)
